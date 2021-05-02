@@ -1,9 +1,9 @@
 package main
 
 import (
+	"backend/server"
 	"log"
 	"net/http"
-	"pigeon-coop/server"
 )
 
 
