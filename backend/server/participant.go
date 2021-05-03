@@ -25,8 +25,13 @@ func (c *Participant) Read(pool *Pool) {
 	}()
 
 	for {
-		msg := Message{Client: c}
-		err := c.Conn.ReadJSON(&msg.Message) //ReadJSON
+		msg := Message{Client: c} //Attach the client to the Message struct? Sure...
+		err := c.Conn.ReadJSON(&msg.Message) //Read JSON from Connect
+
+		if msg.Message != nil {
+			msg.Message["size"] = len(pool.Clients) //For each msg send the size of the room back to clients
+		}
+
 
 		log.Println("LOG MESSAGE:")
 		log.Println(msg.Message)
