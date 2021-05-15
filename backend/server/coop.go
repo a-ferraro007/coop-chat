@@ -58,7 +58,7 @@ func (c *CoopMap) insertIntoCoop(id string, w *websocket.Conn) {
 
 	if c.Map[id] != nil {
 		pool := c.Map[id][0] //Get the connection pool for the roomID
-		participant := &Participant{w, pool} //New participant for this room
+		participant := &Participant{"", w, pool} //New participant for this room
 
 		pool.Register <- participant //Add Participant to the connection Pool
 		go participant.Read(pool)
@@ -66,7 +66,7 @@ func (c *CoopMap) insertIntoCoop(id string, w *websocket.Conn) {
 }
 
 //Delete Coop by ID
-func (c *CoopMap) deleteCoop(id string ){
+func (c *CoopMap) deleteCoop(id string){
 	c.Mutex.RLock()
 	defer c.Mutex.Unlock()
 

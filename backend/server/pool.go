@@ -40,12 +40,23 @@ func (pool *Pool) Start() {
 				break
 			case message := <-pool.Broadcast:
 				fmt.Println("Sending Message to All Connected Clients: ", len(pool.Clients)  - 1)
-				fmt.Println(message.Message)
-				for client, _ := range pool.Clients {
-					if message.Client.Conn != client.Conn {
-						if err := client.Conn.WriteJSON(message.Message); err != nil {
-							fmt.Println(err)
-							return
+				fmt.Println(message.Message["dest"])
+				if message.Message["dest"] == "pool" {
+						for client, _ := range pool.Clients {
+							if message.Client.Conn != client.Conn {
+								if err := client.Conn.WriteJSON(message.Message); err != nil {
+									fmt.Println(err)
+									return
+							}
+						}
+					}
+				} else {
+					for client, _ := range pool.Clients {
+						if message.Message["dest"] == client.Uuid && message.Client.Conn != client.Conn {
+							if err := client.Conn.WriteJSON(message.Message); err != nil {
+								fmt.Println(err)
+								return
+						}
 					}
 				}
 			}
