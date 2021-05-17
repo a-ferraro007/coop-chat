@@ -33,13 +33,13 @@ func (c *Participant) Read(pool *Pool) {
 			msg.Message["size"] = len(pool.Clients) //For each msg send the size of the room back to clients
 		}
 
-		log.Println("LOG MESSAGE:")
-		log.Println(msg.Message["join"])
+		fmt.Println("LOG MESSAGE:")
+		fmt.Println(msg.Message["join"])
 
 		//Set UUID to the participant on Join
 		if msg.Message["join"] == true {
-			log.Println("LOG UUID:")
-			log.Println( msg.Message["uuid"].(string))
+			fmt.Println("LOG UUID:")
+			fmt.Println( msg.Message["uuid"].(string))
 			c.Uuid = msg.Message["uuid"].(string)
 		}
 

@@ -45,7 +45,7 @@ func CreateCoopRequestHandler(w http.ResponseWriter, r *http.Request)  {
 	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
 
 	id = AllCoops.createCoop()
-	log.Println(id)
+	fmt.Println(id)
 
 	json.NewEncoder(w).Encode(resp{RoomID: id})
 }
@@ -55,7 +55,7 @@ func JoinCoopRequestHandler(w http.ResponseWriter, r *http.Request) {
 	roomId, ok := r.URL.Query()["roomID"]
 
 	if !ok {
-		log.Println("Missing room Id")
+		fmt.Println("Missing room Id")
 		return
 	}
 

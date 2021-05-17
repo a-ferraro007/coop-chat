@@ -1,7 +1,7 @@
 package server
 
 import (
-	"log"
+	"fmt"
 	"math/rand"
 	"sync"
 	"time"
@@ -19,7 +19,7 @@ type CoopMap struct {
 //Pointer Reciever function modifies CoopMap Struct
 //Initializes CoopMap
 func (c *CoopMap) Init(){
-	log.Println(c)
+	fmt.Println(c)
 	c.Map = make(map[string][]*Pool)
 }
 

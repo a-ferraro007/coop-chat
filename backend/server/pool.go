@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 )
 
 type Pool struct {
@@ -28,7 +27,7 @@ func (pool *Pool) Start() {
 				pool.Clients[client] = true
 				fmt.Println("Size of the connection Pool: ", len(pool.Clients))
 				for client, _ := range pool.Clients {
-					log.Println(client)
+					fmt.Println(client)
 				}
 				break
 			case client := <-pool.Unregister:
