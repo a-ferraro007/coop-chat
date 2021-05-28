@@ -19,15 +19,15 @@ type Message struct {
 	Client *Participant
 }
 
-func (c *Participant) Read(pool *Pool) {
+func (participant *Participant) Read(pool *Pool) {
 	defer func() {
-		pool.Unregister <- c
-		c.Conn.Close()
+		pool.Unregister <- participant
+		participant.Conn.Close()
 	}()
 
 	for {
-		msg := Message{Client: c} //Attach the client to the Message struct? Sure...
-		err := c.Conn.ReadJSON(&msg.Message) //Read JSON from Connect
+		msg := Message{Client: participant} //Attach the client to the Message struct? Sure...
+		err := participant.Conn.ReadJSON(&msg.Message) //Read JSON from Connect
 
 		if msg.Message != nil {
 			msg.Message["size"] = len(pool.Clients) //For each msg send the size of the room back to clients
@@ -40,7 +40,7 @@ func (c *Participant) Read(pool *Pool) {
 		if msg.Message["join"] == true {
 			fmt.Println("LOG UUID:")
 			fmt.Println( msg.Message["uuid"].(string))
-			c.Uuid = msg.Message["uuid"].(string)
+			participant.Uuid = msg.Message["uuid"].(string)
 		}
 
 		if err != nil {

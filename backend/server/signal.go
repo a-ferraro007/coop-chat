@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var AllCoops CoopMap //Typing As CoopMap
+var AllRooms RoomMap //Typing As CoopMap
 var id string
 
 type resp struct {
@@ -40,18 +40,18 @@ func Upgrader( w http.ResponseWriter, r  *http.Request) (*websocket.Conn, error)
 }
 
 //Create Coop and return CoopID
-func CreateCoopRequestHandler(w http.ResponseWriter, r *http.Request)  {
+func CreateRoomRequestHandler(w http.ResponseWriter, r *http.Request)  {
 
 	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
 
-	id = AllCoops.createCoop()
+	id = AllRooms.createRoom()
 	fmt.Println(id)
 
 	json.NewEncoder(w).Encode(resp{RoomID: id})
 }
 
 //Join Coop
-func JoinCoopRequestHandler(w http.ResponseWriter, r *http.Request) {
+func JoinRoomRequestHandler(w http.ResponseWriter, r *http.Request) {
 	roomId, ok := r.URL.Query()["roomID"]
 
 	if !ok {
@@ -60,14 +60,14 @@ func JoinCoopRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ws, _  := Upgrader(w, r)
-	AllCoops.insertIntoCoop(strings.Join(roomId, " "), ws)
+	AllRooms.insertIntoRoom(strings.Join(roomId, " "), ws)
 }
 
-func GetCoopsRequestHandler(w http.ResponseWriter, r *http.Request)  {
+func GetRoomsRequestHandler(w http.ResponseWriter, r *http.Request)  {
 	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
 	resp := make([]string, 0)
 
-	for i, _ := range AllCoops.Map {
+	for i, _ := range AllRooms.Map {
 		resp = append(resp, i)
 	}
 

@@ -10,7 +10,7 @@ import (
 )
 
 //Hash map of connection pools
-type CoopMap struct {
+type RoomMap struct {
 	Mutex sync.RWMutex
 	Map map[string][]*Pool //Key type String, ValueType Pool Pointer
 }
@@ -18,9 +18,9 @@ type CoopMap struct {
 
 //Pointer Reciever function modifies CoopMap Struct
 //Initializes CoopMap
-func (c *CoopMap) Init(){
-	fmt.Println(c)
-	c.Map = make(map[string][]*Pool)
+func (r *RoomMap) Init(){
+	fmt.Println(r)
+	r.Map = make(map[string][]*Pool)
 }
 
 //func (c *CoopMap) getCoopById(id string) []Participant {
@@ -31,9 +31,9 @@ func (c *CoopMap) Init(){
 //}
 
 //Create Room generate id and push onto hash map
-func (c *CoopMap) createCoop() string {
-	c.Mutex.Lock()
-	defer c.Mutex.Unlock()
+func (r *RoomMap) createRoom() string {
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
 
 	rand.Seed(time.Now().UnixNano())
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXUZ1234567890")
@@ -47,17 +47,17 @@ func (c *CoopMap) createCoop() string {
 	id := string(b)
 	pool := NewPool()
 	go pool.Start()
-	c.Map[id] = append(c.Map[id], pool)
+	r.Map[id] = append(r.Map[id], pool)
 	return id
 }
 
 //insert into Coop and start reading messages
-func (c *CoopMap) insertIntoCoop(id string, w *websocket.Conn) {
-	c.Mutex.Lock()
-	defer c.Mutex.Unlock()
+func (r *RoomMap) insertIntoRoom(id string, w *websocket.Conn) {
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
 
-	if c.Map[id] != nil {
-		pool := c.Map[id][0] //Get the connection pool for the roomID
+	if r.Map[id] != nil {
+		pool := r.Map[id][0] //Get the connection pool for the roomID
 		participant := &Participant{"", w, pool} //New participant for this room
 
 		pool.Register <- participant //Add Participant to the connection Pool
@@ -66,10 +66,10 @@ func (c *CoopMap) insertIntoCoop(id string, w *websocket.Conn) {
 }
 
 //Delete Coop by ID
-func (c *CoopMap) deleteCoop(id string){
-	c.Mutex.RLock()
-	defer c.Mutex.Unlock()
+func (r *RoomMap) deleteRoom(id string){
+	r.Mutex.RLock()
+	defer r.Mutex.Unlock()
 
-	delete(c.Map, id)
+	delete(r.Map, id)
 }
 
