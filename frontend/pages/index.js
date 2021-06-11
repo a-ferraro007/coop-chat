@@ -6,6 +6,7 @@ export async function getStaticProps() {
   try {
     const res = await axios.get('http://localhost:8000/get')
     const data = res.data
+    console.log(data.rooms[0])
     return {
       props: {
         data
@@ -55,13 +56,13 @@ export default function Home({ data }) {
             {' '}
             {rooms?.length > 0 ? (
               rooms?.map((e, k) => {
-                console.log(e)
+                console.log(e.uuid)
                 return (
                   <li key={k}>
-                    <Link href={`/Room/${encodeURIComponent(e)}`}>
+                    <Link href={`/Room/${encodeURIComponent(e.uuid)}`}>
                       <a className="block px-2 py-2 border-2 rounded hover:bg-blue-700 hover:text-white">
                         {' '}
-                        {e}{' '}
+                        {e.uuid}{' '}
                       </a>
                     </Link>
                   </li>
