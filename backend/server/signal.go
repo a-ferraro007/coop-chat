@@ -9,27 +9,35 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
+	"golang.org/x/crypto/bcrypt"
 )
 
-var AllRooms RoomMap //Typing As CoopMap
+var AllRooms RoomMap //Typing As RoomMap
 var id string
-var DB *sql.DB
+var DB *sql.DB //Pointer to DB
 
-type Resp struct {
-	Id int `json:"id"`
-	Uuid string `json:"uuid"`
-	Name string `json:"name"`
+type RoomResp struct {
+	Id int `json:"roomId"`
+	Uuid string `json:"roomUuid"`
+	Name string `json:"roomName"`
 }
 
 type respMap struct {
-	Rooms []Resp `json:"rooms"`
+	Rooms []RoomResp `json:"rooms"`
 }
 
-//type Room struct {
-//	id int
-//	uuid string
-//	name string
-//}
+type UuidResp struct {
+	Uuid string `json:"userUuid"`
+}
+
+type LoginBody struct {
+	Username string
+	Password string
+}
+
+////////////////////////////////
+//// FIX API ERROR HANDLING ////
+////////////////////////////////
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize: 1024,
@@ -51,7 +59,6 @@ func Upgrader( w http.ResponseWriter, r  *http.Request) (*websocket.Conn, error)
 
 //Create Coop and return CoopID
 func CreateRoomRequestHandler(w http.ResponseWriter, r *http.Request)  {
-
 	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
 
 	id = AllRooms.createRoom()
@@ -60,7 +67,7 @@ func CreateRoomRequestHandler(w http.ResponseWriter, r *http.Request)  {
 	//json.NewEncoder(w).Encode(resp{RoomID: id})
 }
 
-//Join Coop
+//Join Room
 func JoinRoomRequestHandler(w http.ResponseWriter, r *http.Request) {
 	roomId, ok := r.URL.Query()["roomID"]
 
@@ -73,31 +80,118 @@ func JoinRoomRequestHandler(w http.ResponseWriter, r *http.Request) {
 	AllRooms.insertIntoRoom(strings.Join(roomId, " "), ws)
 }
 
+//Get Room
 func GetRoomsRequestHandler(w http.ResponseWriter, r *http.Request)  {
 	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
-	//fmt.Println(DB)
-		rooms, err := getRooms()
+	rooms, err := getRooms()
 
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-		fmt.Println(rooms)
-		json.NewEncoder(w).Encode(respMap{Rooms: rooms})
-	//resp := make([]string, 0)
-
-	//for i, _ := range AllRooms.Map {
-	//	resp = append(resp, i)
-	//}
-
-	//fmt.Println(resp)
-
+	fmt.Println(rooms)
+	json.NewEncoder(w).Encode(respMap{Rooms: rooms})
 }
 
-func getRooms() ([]Resp, error)  {
+func RegisterUserRequestHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+	var body LoginBody
+
+	if(r.Method != http.MethodPost){
+		log.Printf("Require POST Request")
+		w.WriteHeader(500)
+		return
+	}
+
+	//Read Request Body and return error if unsuccessful
+	bodyErr := json.NewDecoder(r.Body).Decode(&body)
+	if bodyErr != nil {
+		log.Printf("%v", bodyErr)
+		w.WriteHeader(500)
+		return
+	}
+
+	//Check if username is valid
+	isValid := checkValidUsername(body.Username)
+	fmt.Println(isValid)
+	if !isValid {
+		w.WriteHeader(500)
+		return
+	}
+
+	//Hash password with bcrypt
+	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("%v", err)
+		w.WriteHeader(500)
+		return
+	}
+	fmt.Println(string(hash))
+
+	//Convert hash byte slice into string, insert user into DB.
+	//If unsuccessful return DB generated Uuid if not return error.
+	//Convert hash byte slice into string.
+	uuid, err := insertUser(body.Username, string(hash))
+	if err != nil {
+		log.Printf("%v", err)
+		w.WriteHeader(500)
+	}
+
+	json.NewEncoder(w).Encode(UuidResp{Uuid: uuid})
+}
+
+func LoginRequestHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+	var body LoginBody
+
+	if(r.Method != http.MethodPost){
+		log.Printf("Require POST Request")
+		w.WriteHeader(500)
+		return
+	}
+
+	//Read Request Body and return error if unsuccessful
+	bodyErr := json.NewDecoder(r.Body).Decode(&body)
+	if bodyErr != nil {
+		log.Printf("%v", bodyErr)
+		w.WriteHeader(500)
+	}
+
+	uuid, err := validateLogin(body.Username, body.Password)
+	if err != nil {
+		fmt.Println("err validating")
+		fmt.Println(err)
+		return
+	}
+
+	json.NewEncoder(w).Encode(UuidResp{Uuid: uuid})
+}
+
+
+/////////////////////////////////////
+//Move these to seperate Go module?//
+////////////////////////////////////
+
+//Check DB for username
+func checkValidUsername(username string) (bool) {
+	var uuid string
+
+	query := fmt.Sprintf("SELECT user_uuid FROM users WHERE username = '%s'", username)
+	err := DB.QueryRow(query).Scan(&uuid)
+
+	if err == sql.ErrNoRows {
+		return true
+	} else {
+		return false
+	}
+}
+
+
+//Return Rooms from DB
+func getRooms() ([]RoomResp, error)  {
 	rows, err := DB.Query(`SELECT * from rooms`,)
-	rooms := make([]Resp, 0)
+	rooms := make([]RoomResp, 0)
 
 	defer rows.Close()
 
@@ -108,7 +202,7 @@ func getRooms() ([]Resp, error)  {
 		fmt.Println(rows)
 
 		for rows.Next() {
-			room := Resp{}
+			room := RoomResp{}
 
 			err := rows.Scan(&room.Id, &room.Uuid, &room.Name)
 			if err != nil {
@@ -118,7 +212,43 @@ func getRooms() ([]Resp, error)  {
 			rooms = append(rooms, room)
 		}
 
-			return rooms, nil
+		return rooms, nil
+}
+
+//Insert User into DB
+//Usernames can be duplicated
+func insertUser(username string, password string) (string, error){
+	query := fmt.Sprintf("INSERT into users VALUES (nextval('users_user_id_seq'::regclass), default, '%s', '%s') RETURNING user_uuid;", username, password)
+
+	var uuid string
+	err := DB.QueryRow(query).Scan(&uuid)
+
+	if err != nil {
+		fmt.Println(err)
+		return "", err
+	}
+
+	return uuid, nil
+}
+
+//Query DB for username and compare hashed password
+func validateLogin(username string, password string) (string, error) {
+	var uuid, dbUsername, dbPassword string
+	query := fmt.Sprintf("SELECT user_uuid, username, password FROM users where username = '%s'", username)
+
+	err := DB.QueryRow(query).Scan(&uuid, &dbUsername, &dbPassword)
+	if err != nil {
+		fmt.Println(err)
+		return "", err
+	}
+
+	bcryptErr := bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(password))
+	if bcryptErr != nil {
+		fmt.Println(bcryptErr)
+		return "", err
+	}
+
+	return uuid, nil
 }
 
 
@@ -134,3 +264,11 @@ func getRooms() ([]Resp, error)  {
 //select user_id, user_uuid
 //from active_rooms
 //where room_uuid = 'e6ba496a-7134-43e0-ac67-b7d76c565502'
+
+//INSERT USER
+//insert into users values (nextval('users_user_id_seq'::regclass), default, username, password)
+//INSERT USER RETURN UUID
+// insert into users values (nextval('users_user_id_seq'::regclass), default, 'test', 'test') returning user_uuid;
+
+//Select user from userID
+//select user_uuid, username, password from users where username = '%s'
