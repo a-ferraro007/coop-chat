@@ -56,13 +56,13 @@ export default function Home({ data }) {
             {' '}
             {rooms?.length > 0 ? (
               rooms?.map((e, k) => {
-                console.log(e.uuid)
+                console.log(e.roomUuid)
                 return (
                   <li key={k}>
-                    <Link href={`/Room/${encodeURIComponent(e.uuid)}`}>
+                    <Link href={`/Room/${encodeURIComponent(e.roomUuid)}`}>
                       <a className="block px-2 py-2 border-2 rounded hover:bg-blue-700 hover:text-white">
                         {' '}
-                        {e.uuid}{' '}
+                        {e.roomUuid}{' '}
                       </a>
                     </Link>
                   </li>
