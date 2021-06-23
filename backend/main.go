@@ -28,7 +28,7 @@ func main() {
 	http.HandleFunc("/create", server.CreateRoomRequestHandler)
 	http.HandleFunc("/join", server.JoinRoomRequestHandler)
 	http.HandleFunc("/get", server.GetRoomsRequestHandler)
-	http.HandleFunc("/register", server.RegisterUserRequestHandler)
+	http.HandleFunc("/create_account", server.RegisterUserRequestHandler)
 	http.HandleFunc("/login", server.LoginRequestHandler)
 
 	log.Println("Starting Server on :8000")

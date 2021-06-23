@@ -30,6 +30,10 @@ type UuidResp struct {
 	Uuid string `json:"userUuid"`
 }
 
+type ErrorResp struct {
+	ErrorMessage string `json:"error"`
+}
+
 type LoginBody struct {
 	Username string
 	Password string
@@ -57,9 +61,18 @@ func Upgrader( w http.ResponseWriter, r  *http.Request) (*websocket.Conn, error)
 	return conn, nil
 }
 
+func handleCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+}
+
 //Create Coop and return CoopID
 func CreateRoomRequestHandler(w http.ResponseWriter, r *http.Request)  {
-	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+	handleCors(&w)
+	if r.Method == "OPTIONS" {
+		return
+ 	}
 
 	id = AllRooms.createRoom()
 	fmt.Println(id)
@@ -69,6 +82,11 @@ func CreateRoomRequestHandler(w http.ResponseWriter, r *http.Request)  {
 
 //Join Room
 func JoinRoomRequestHandler(w http.ResponseWriter, r *http.Request) {
+	handleCors(&w)
+	if r.Method == "OPTIONS" {
+		return
+ 	}
+
 	roomId, ok := r.URL.Query()["roomID"]
 
 	if !ok {
@@ -82,7 +100,11 @@ func JoinRoomRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 //Get Room
 func GetRoomsRequestHandler(w http.ResponseWriter, r *http.Request)  {
-	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+	handleCors(&w)
+	if r.Method == "OPTIONS" {
+		return
+ 	}
+
 	rooms, err := getRooms()
 
 	if err != nil {
@@ -95,14 +117,19 @@ func GetRoomsRequestHandler(w http.ResponseWriter, r *http.Request)  {
 }
 
 func RegisterUserRequestHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
-	var body LoginBody
+	handleCors(&w)
+	if r.Method == "OPTIONS" {
+		return
+ 	}
 
-	if(r.Method != http.MethodPost){
+	if r.Method != http.MethodPost {
 		log.Printf("Require POST Request")
-		w.WriteHeader(500)
+		w.WriteHeader(405)
+		json.NewEncoder(w).Encode(ErrorResp{ErrorMessage: "Method not allowed: Route requires POST Request"})
 		return
 	}
+
+	var body LoginBody
 
 	//Read Request Body and return error if unsuccessful
 	bodyErr := json.NewDecoder(r.Body).Decode(&body)
@@ -142,29 +169,35 @@ func RegisterUserRequestHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func LoginRequestHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
-	var body LoginBody
+	handleCors(&w)
+	if r.Method == "OPTIONS" {
+		return
+ 	}
 
-	if(r.Method != http.MethodPost){
+	if r.Method != http.MethodPost {
 		log.Printf("Require POST Request")
-		w.WriteHeader(500)
+		w.WriteHeader(405)
+		json.NewEncoder(w).Encode(ErrorResp{ErrorMessage: "Method not allowed: Route requires POST Request"})
 		return
 	}
+
+	var body LoginBody
 
 	//Read Request Body and return error if unsuccessful
 	bodyErr := json.NewDecoder(r.Body).Decode(&body)
 	if bodyErr != nil {
 		log.Printf("%v", bodyErr)
-		w.WriteHeader(500)
+		w.WriteHeader(400)
 	}
 
 	uuid, err := validateLogin(body.Username, body.Password)
 	if err != nil {
-		fmt.Println("err validating")
-		fmt.Println(err)
+		fmt.Println("error validating: ", err)
+		w.WriteHeader(400)
+		json.NewEncoder(w).Encode(ErrorResp{ErrorMessage: err.Error()})
 		return
 	}
-
+	fmt.Println(uuid)
 	json.NewEncoder(w).Encode(UuidResp{Uuid: uuid})
 }
 
@@ -245,7 +278,7 @@ func validateLogin(username string, password string) (string, error) {
 	bcryptErr := bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(password))
 	if bcryptErr != nil {
 		fmt.Println(bcryptErr)
-		return "", err
+		return "", bcryptErr
 	}
 
 	return uuid, nil

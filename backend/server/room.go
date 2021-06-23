@@ -16,7 +16,7 @@ type RoomMap struct {
 }
 
 
-//Pointer Reciever function modifies CoopMap Struct
+//Pointer Reciever function modifies RoomMap Struct
 //Initializes CoopMap
 func (r *RoomMap) Init(){
 	fmt.Println(r)
@@ -51,7 +51,7 @@ func (r *RoomMap) createRoom() string {
 	return id
 }
 
-//insert into Coop and start reading messages
+//insert into Room and start reading messages
 func (r *RoomMap) insertIntoRoom(id string, w *websocket.Conn) {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
@@ -65,11 +65,10 @@ func (r *RoomMap) insertIntoRoom(id string, w *websocket.Conn) {
 	}
 }
 
-//Delete Coop by ID
+//Delete Room by ID
 func (r *RoomMap) deleteRoom(id string){
 	r.Mutex.RLock()
 	defer r.Mutex.Unlock()
 
 	delete(r.Map, id)
 }
-
