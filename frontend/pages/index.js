@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import axios from 'axios'
+//import ProtectedRoute from '../context/protectedRoute'
+import { ProtectedRoute } from '../context/auth'
 
-export async function getStaticProps() {
+const fetchData = async () => {
   try {
     const res = await axios.get('http://localhost:8000/get')
     const data = res.data
@@ -21,10 +23,14 @@ export async function getStaticProps() {
   }
 }
 
-export default function Home({ data }) {
+Home.getStaticProps = async () => {
+  return await fetchData()
+}
+
+function Home({ data }) {
   const [rooms, setRooms] = useState(data?.rooms)
 
-  const createCoop = async () => {
+  const createRoom = async () => {
     try {
       let temp = rooms || []
       //Switch /create to a POST and take room data from the frontend
@@ -38,13 +44,13 @@ export default function Home({ data }) {
 
   return (
     <div className="w-1/2 mx-auto mt-10 text-center">
-      <h1 className="text-4xl"> Coop Chat </h1>
+      <h1 className="text-4xl"> Voice Chat </h1>
 
       <div className="flex flex-row justify-between mt-10">
         <div>
           <button
             className="flex-grow-0 px-2 py-2 border-2 rounded hover:bg-blue-700 hover:text-white"
-            onClick={createCoop}
+            onClick={createRoom}
           >
             {' '}
             Create Room{' '}
@@ -77,3 +83,5 @@ export default function Home({ data }) {
     </div>
   )
 }
+
+export default ProtectedRoute(Home)

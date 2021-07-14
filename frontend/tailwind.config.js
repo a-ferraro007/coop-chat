@@ -4,11 +4,13 @@ module.exports = {
   darkMode: false, // or 'media' or 'class'
   theme: {
     fontFamily: {
-      sans: 'Oswald, sans-serif'
+      sans: ['"Ubuntu"', 'sans-serif'],
+      display: ['"Ubuntu"', 'sans-serif']
     },
     extend: {
       colors: {
-        'primary-dark': '#373F47',
+        'primary-dark': '#1D1934', //'#373F47',
+        'bg-white': '#F7F7F7',
         'login-bg-blue': 'rgba(0, 147, 233, .5)',
         'login-bg-green': 'rgba(128, 208, 99, .5)'
       },
