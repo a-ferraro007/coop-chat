@@ -2,7 +2,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import axios from 'axios'
 //import ProtectedRoute from '../context/protectedRoute'
-import { ProtectedRoute } from '../context/auth'
+
+import ProtectedRoute, { AuthProvider } from '../context/auth'
 
 const fetchData = async () => {
   try {
@@ -23,9 +24,9 @@ const fetchData = async () => {
   }
 }
 
-Home.getStaticProps = async () => {
-  return await fetchData()
-}
+// export async function getStaticProps()  {
+//  return await fetchData()
+//}
 
 function Home({ data }) {
   const [rooms, setRooms] = useState(data?.rooms)

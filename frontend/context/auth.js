@@ -1,8 +1,3 @@
-//import router
-//create authcontext
-//create authprovider component
-//
-
 import { createContext, useState, useEffect, useContext } from 'react'
 export const AuthContext = createContext()
 
@@ -42,20 +37,16 @@ export const AuthProvider = (props) => {
   )
 }
 
-export const useAuth = () => useContext(AuthContext)
 
-export const ProtectedRoute = (props) => {
-  const auth = useAuth()
 
-  if (auth.loading || auth.isAuthenticated === false) {
-    return (
-      <>
-        <div>...Loading </div>
-      </>
-    )
-  } else {
-    Router.push('/login')
+const ProtectedRoute = Component => {
+  const Wrapper = props => {
+    const auth = useContext(AuthContext)
+    return <Component {...props} />
+
   }
 
-  return props.children
+  return Wrapper
 }
+
+export default ProtectedRoute

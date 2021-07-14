@@ -1,15 +1,11 @@
 import 'tailwindcss/tailwind.css'
-import { AuthProvider, ProtectedRoute } from '../context/auth'
-
-//import ProtectedRoute from '../protectedRoute'
+import { AuthProvider } from '../context/auth'
 
 function MyApp({ Component, pageProps }) {
   return (
     <>
       <AuthProvider>
-        <ProtectedRoute>
-          <Component {...pageProps} />
-        </ProtectedRoute>
+        <Component {...pageProps} />
       </AuthProvider>
     </>
   )
