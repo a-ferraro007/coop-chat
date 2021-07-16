@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, useContext } from 'react'
 import Router from 'next/router'
+import axios from 'axios'
 export const AuthContext = createContext()
 
 export const AuthProvider = (props) => {
@@ -7,18 +8,33 @@ export const AuthProvider = (props) => {
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    setUser(false)
-  }, [])
+    console.log(user)
+  }, [user])
 
-  const login = async (email, passsword) => {
+  const createAccount = async (email, username, password) => {
+    try {
+      const body = {
+        email: email,
+        username: username,
+        password: password
+      }
+      const res = await axios.post('http://localhost:8000/create_account', body)
+      setUser(res.data)
+      Router.push('/')
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  const login = async (username, password) => {
     try {
       const body = {
         username: username,
         password: password
       }
-      const resp = await axios.post('http://localhost:8000/login', body)
-      console.log(resp.data)
-      setUser(resp.data)
+      const res = await axios.post('http://localhost:8000/login', body)
+      setUser(res.data)
+      Router.push('/')
     } catch (error) {
       console.log(error)
     }
@@ -30,6 +46,7 @@ export const AuthProvider = (props) => {
         isAuthenticated: !!user,
         user: user,
         login: login,
+        create: createAccount,
         loading: isLoading
       }}
     >

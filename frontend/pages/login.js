@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import axios from 'axios'
+import { useAuth } from '../context/auth'
 
 function login() {
   const [isCreate, setUseIsCreate] = useState(false)
@@ -7,32 +8,14 @@ function login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const { login, user, create } = useAuth()
 
   const submitClick = async (e) => {
     e.preventDefault()
-
-    try {
-      if (isCreate) {
-        const body = {
-          email: email,
-          username: username,
-          password: password
-        }
-        const data = await axios.post(
-          'http://localhost:8000/create_account',
-          body
-        )
-        console.log(data)
-      } else {
-        const body = {
-          username: username,
-          password: password
-        }
-        const resp = await axios.post('http://localhost:8000/login', body)
-        console.log(resp.data)
-      }
-    } catch (error) {
-      console.log(error)
+    if (isCreate) {
+      create(email, username, password)
+    } else {
+      login(username, password)
     }
   }
 
@@ -102,7 +85,7 @@ function login() {
         ) : (
           <>
             <input
-              className="w-full rounded-60 box-shadow h-14 mb-4 mt-10 pl-4 text-primary-dark"
+              className="w-full h-14 mb-4 mt-10 pl-4 text-primary-dark border-b-2 border-primary-dark"
               type="text"
               placeholder="username"
               onChange={(e) => {

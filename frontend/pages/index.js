@@ -38,6 +38,7 @@ function Home({ data }) {
       let temp = rooms || []
       //Switch /create to a POST and take room data from the frontend
       const res = await axios.get('http://localhost:8000/create')
+      console.log(res.data)
       temp.push(res.data.roomID)
       setRooms([...temp])
     } catch (error) {
@@ -66,13 +67,13 @@ function Home({ data }) {
               {' '}
               {rooms?.length > 0 ? (
                 rooms?.map((e, k) => {
-                  console.log(e.roomUuid)
+                  console.log(e?.roomUuid)
                   return (
                     <li key={k}>
-                      <Link href={`/Room/${encodeURIComponent(e.roomUuid)}`}>
+                      <Link href={`/Room/${encodeURIComponent(e?.roomUuid)}`}>
                         <a className="block px-2 py-2 border-2 rounded hover:bg-blue-700 hover:text-white">
                           {' '}
-                          {e.roomUuid}{' '}
+                          {e?.roomUuid}{' '}
                         </a>
                       </Link>
                     </li>
