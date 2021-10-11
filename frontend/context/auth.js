@@ -32,7 +32,7 @@ export const AuthProvider = (props) => {
         username: username,
         password: password
       }
-      const res = await axios.post('http://localhost:8000/login', body)
+      const res = await axios.post('https://chat.tony.place/login', body)
       setUser(res.data)
       Router.push('/')
     } catch (error) {

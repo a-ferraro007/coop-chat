@@ -2,9 +2,7 @@ package server
 
 import (
 	"fmt"
-	"math/rand"
 	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -31,24 +29,23 @@ func (r *RoomMap) Init(){
 //}
 
 //Create Room generate id and push onto hash map
-func (r *RoomMap) createRoom() string {
+func (r *RoomMap) createRoom(uuid string) {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 
-	rand.Seed(time.Now().UnixNano())
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXUZ1234567890")
+	//rand.Seed(time.Now().UnixNano())
+	//var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXUZ1234567890")
 
-	b := make([]rune, 8)
+	//b := make([]rune, 8)
 
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
+	//for i := range b {
+	//	b[i] = letters[rand.Intn(len(letters))]
+	//}
 
-	id := string(b)
+	//id := string(b)
 	pool := NewPool()
 	go pool.Start()
-	r.Map[id] = append(r.Map[id], pool)
-	return id
+	r.Map[uuid] = append(r.Map[uuid], pool)
 }
 
 //insert into Room and start reading messages
@@ -56,10 +53,17 @@ func (r *RoomMap) insertIntoRoom(id string, w *websocket.Conn) {
 	r.Mutex.Lock()
 	defer r.Mutex.Unlock()
 
+	fmt.Println("~~~~~~~ INSERT INTO POOL ~~~~~~~~")
 	if r.Map[id] != nil {
 		pool := r.Map[id][0] //Get the connection pool for the roomID
 		participant := &Participant{"", w, pool} //New participant for this room
+		fmt.Println("~~~~~~~ PARTICIPANT INSERT INTO POOL ~~~~~~~~")
+		fmt.Println(participant)
 
+		 fmt.Println("~~~~~~~~~~~~~~~")
+		 fmt.Println("~~~~~~~ POOL INSERT INTO POOL ~~~~~~~~")
+		fmt.Println(pool)
+fmt.Println("~~~~~~~~~~~~~~~")
 		pool.Register <- participant //Add Participant to the connection Pool
 		go participant.Read(pool)
 	}

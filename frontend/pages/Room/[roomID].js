@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router'
 import { useEffect, useState, useRef } from 'react'
 import PeerVideo from '../../components/PeerVideo'
+import ProtectedRoute, { useAuth } from '../../context/auth'
 
 const Room = () => {
   const router = useRouter()
@@ -13,6 +14,7 @@ const Room = () => {
   const [peerStreams, setPeerStreams] = useState([])
   const [stateUUID, setUUID] = useState('')
   const [roomID, setRoomID] = useState(router.query.roomID)
+  const { user } = useAuth()
 
   useEffect(() => {
     if (router.isReady) {
@@ -36,7 +38,8 @@ const Room = () => {
 
   useEffect(() => {
     //Having a ref and a usestate for uuid doesn't make sense. Fix this.
-    uuidRef.current = createUUID()
+
+    uuidRef.current = user.userUuid //createUUID()
     setUUID(uuidRef.current)
     console.log('UUID', uuidRef.current)
     getMedia().then((stream) => {
@@ -172,31 +175,6 @@ const Room = () => {
     }
   }
 
-  // Taken from http://stackoverflow.com/a/105074/515584
-  // Not a real UUID but works in this small scenario
-  function createUUID() {
-    function s4() {
-      return Math.floor((1 + Math.random()) * 0x10000)
-        .toString(16)
-        .substring(1)
-    }
-
-    return (
-      s4() +
-      s4() +
-      '-' +
-      s4() +
-      '-' +
-      s4() +
-      '-' +
-      s4() +
-      '-' +
-      s4() +
-      s4() +
-      s4()
-    )
-  }
-
   const handleLeaveRoom = () => {
     //Close getUserMedia tracks when a user leaves
     audioStream.current.getTracks().forEach((track) => {
@@ -206,7 +184,7 @@ const Room = () => {
   }
   return (
     <div className="w-1/2 mx-auto mt-10 text-center">
-      {roomID ? (
+      {roomID && user ? (
         <>
           <h1 className="pb-10 text-4xl">
             {' '}
@@ -238,4 +216,4 @@ const Room = () => {
   )
 }
 
-export default Room
+export default ProtectedRoute(Room)

@@ -44,20 +44,34 @@ type LoginBody struct {
 ////////////////////////////////
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize: 1024,
-	WriteBufferSize: 1024,
-
-	//Check origin of the connection and allow any connection for now
-	CheckOrigin: func(r *http.Request) bool { return true },
+	HandshakeTimeout: 0,
+	ReadBufferSize:   1024,
+	WriteBufferSize:  1024,
+	WriteBufferPool:  nil,
+	Subprotocols:     []string{},
+	Error: func(w http.ResponseWriter, r *http.Request, status int, reason error) {
+		fmt.Println("~~~~~~~~~~~ERROR IN CHECK UPGRADE~~~~~~~~~")
+		fmt.Println(reason)
+	},
+	CheckOrigin: func(r *http.Request) bool {
+		fmt.Println("~~~~~~~  CHECK ORIGIN REQUEST ~~~~~~~~~")
+		return true
+	},
+	EnableCompression: false,
 }
 
 func Upgrader( w http.ResponseWriter, r  *http.Request) (*websocket.Conn, error) {
+	fmt.Println("~~~~~~~ CONNECTION UPGRADE ~~~~~~~")
 	conn, err := upgrader.Upgrade(w, r, nil)
+	fmt.Println("~~~~~~~ CONNECTION ~~~~~~~")
+	fmt.Println(conn)
+	fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~~~~")
+
 	if err != nil {
 		fmt.Fprintf(w, "%+V\n", err)
 		log.Fatal("Upgrade error", err)
 	}
-
+	fmt.Println("UPGRADE RETURN")
 	return conn, nil
 }
 
@@ -67,21 +81,29 @@ func handleCors(w *http.ResponseWriter) {
 	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 }
 
-//Create Coop and return CoopID
+//Create room and return RoomID
 func CreateRoomRequestHandler(w http.ResponseWriter, r *http.Request)  {
-	handleCors(&w)
-	if r.Method == "OPTIONS" {
-		return
- 	}
+	fmt.Println("~~~~~~~CREATE~~~~~~~")
+	 handleCors(&w)
 
-	id = AllRooms.createRoom()
-	fmt.Println(id)
+	 if r.Method == "OPTIONS" {
+		 return
+		}
 
-	//json.NewEncoder(w).Encode(resp{RoomID: id})
-}
+	 uuid, err := dbCreateRoom("test")
+
+	 if err != nil {
+		 fmt.Println(err)
+		 return
+	 }
+	 AllRooms.createRoom(uuid)
+
+	 json.NewEncoder(w).Encode(RoomResp{Uuid: uuid})
+ }
 
 //Join Room
 func JoinRoomRequestHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("JOIN ROOM")
 	handleCors(&w)
 	if r.Method == "OPTIONS" {
 		return
@@ -95,11 +117,15 @@ func JoinRoomRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ws, _  := Upgrader(w, r)
+	fmt.Println("~~~~~~~WEBSOCKET~~~~~~~")
+	fmt.Println( ws)
+	fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~")
 	AllRooms.insertIntoRoom(strings.Join(roomId, " "), ws)
 }
 
 //Get Room
 func GetRoomsRequestHandler(w http.ResponseWriter, r *http.Request)  {
+	fmt.Println("~~~~~~ GET ROOMS ~~~~~")
 	handleCors(&w)
 	if r.Method == "OPTIONS" {
 		return
@@ -112,11 +138,17 @@ func GetRoomsRequestHandler(w http.ResponseWriter, r *http.Request)  {
 		return
 	}
 
+	fmt.Println("~~~~~~ GET ROOMS RETURN ~~~~~")
 	fmt.Println(rooms)
+	fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+	fmt.Println("LENGTH")
+	fmt.Println(len(rooms))
+	fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 	json.NewEncoder(w).Encode(respMap{Rooms: rooms})
 }
 
 func RegisterUserRequestHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("~~~~~~~REGISTER~~~~~~~")
 	handleCors(&w)
 	if r.Method == "OPTIONS" {
 		return
@@ -157,8 +189,7 @@ func RegisterUserRequestHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(string(hash))
 
 	//Convert hash byte slice into string, insert user into DB.
-	//If unsuccessful return DB generated Uuid if not return error.
-	//Convert hash byte slice into string.
+	//If successful return DB generated Uuid if not return error.
 	uuid, err := insertUser(body.Username, string(hash))
 	if err != nil {
 		log.Printf("%v", err)
@@ -226,6 +257,8 @@ func getRooms() ([]RoomResp, error)  {
 	rows, err := DB.Query(`SELECT * from rooms`,)
 	rooms := make([]RoomResp, 0)
 
+
+
 	defer rows.Close()
 
 	if err != nil {
@@ -245,11 +278,15 @@ func getRooms() ([]RoomResp, error)  {
 			rooms = append(rooms, room)
 		}
 
+		fmt.Println("~~~~~~ ROOMS ~~~~~~~")
+		fmt.Println(rooms)
+		fmt.Println("~~~~~~~~~~~~~~~~~~~~")
+
 		return rooms, nil
 }
 
 //Insert User into DB
-//Usernames can be duplicated
+//Usernames can be duplicated right now
 func insertUser(username string, password string) (string, error){
 	query := fmt.Sprintf("INSERT into users VALUES (nextval('users_user_id_seq'::regclass), default, '%s', '%s') RETURNING user_uuid;", username, password)
 
@@ -279,6 +316,20 @@ func validateLogin(username string, password string) (string, error) {
 	if bcryptErr != nil {
 		fmt.Println(bcryptErr)
 		return "", bcryptErr
+	}
+
+	return uuid, nil
+}
+
+func dbCreateRoom(roomName string ) (string, error) {
+	query := fmt.Sprintf("INSERT into rooms VALUES (nextval('users_user_id_seq'::regclass), default, '%s') RETURNING room_uuid;", roomName)
+
+	var uuid string
+	err := DB.QueryRow(query).Scan(&uuid)
+
+	if err != nil {
+		fmt.Println(err)
+		return "", err
 	}
 
 	return uuid, nil
