@@ -1,28 +1,45 @@
-import React, { useState } from "react";
-import { signIn } from "next-auth/client";
-import axios from "axios";
-import { useAuth } from "../context/auth";
+import React from "react"
+import { providers, signIn } from "next-auth/client"
 
-function login() {
-  return (
-    <div>
-      {" "}
-      <p>
-        <a
-          href="/api/auth/signin"
-          onClick={(e) => {
-            e.preventDefault();
-            signIn();
-          }}
-        >
-          You must be signed in to view this page
-        </a>
-      </p>
-    </div>
-  );
+export async function getServerSideProps(ctx) {
+  return {
+    props: {
+      providers: await providers(),
+    },
+  }
 }
 
-export default login;
+function login({ providers }) {
+  console.log(providers.google.id)
+  return (
+    <div
+      className="flex justify-center flex-col"
+      style={{ marginTop: "100px", flexDirection: "column" }}
+    >
+      {" "}
+      <h1 className="text-primary-dark text-3xl text-center font-sans font-bold">
+        {" "}
+        Voice Chat{" "}
+      </h1>
+      <div className="mx-auto" style={{ marginTop: "50px" }}>
+        <a
+          className="border-2 border-primary-dark rounded-60 px-4 py-3 w-full mb-2 bg-transparent text-primary-dark "
+          href="/api/auth/signin"
+          onClick={(e) => {
+            e.preventDefault()
+            signIn(providers.google.id, {
+              callbackUrl: `${window.location.origin}/`,
+            })
+          }}
+        >
+          Sign In
+        </a>
+      </div>
+    </div>
+  )
+}
+
+export default login
 
 //const [isCreate, setUseIsCreate] = useState(false)
 //const [username, setUsername] = useState('')
@@ -55,10 +72,10 @@ export default login;
 //      className="min-h-400 w-665 mx-auto bg-white rounded-60 mt-10 box-shadow  px-28 py-14"
 //      onSubmit={submitClick}
 //    >
-//      <h1 className="text-primary-dark text-3xl text-center font-sans font-bold">
-//        {' '}
-//        Voice Chat{' '}
-//      </h1>
+//<h1 className="text-primary-dark text-3xl text-center font-sans font-bold">
+//  {' '}
+//  Voice Chat{' '}
+//</h1>
 
 //      {isCreate ? (
 //        <>

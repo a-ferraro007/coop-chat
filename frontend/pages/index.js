@@ -1,60 +1,54 @@
-import { useState } from "react";
-import Link from "next/link";
-import { useSession, getSession } from "next-auth/client";
-import Router from "next/router";
+import { useState } from "react"
+import Link from "next/link"
+import { useSession, getSession } from "next-auth/client"
+import Router from "next/router"
 
 ////import axios from 'axios'
 //import ProtectedRoute, { useAuth } from "../context/auth";
 //import CreateRoom from "../components/CreateRoomModal";
 
-const fetchData = async (context) => {
-  const res = await fetch("https://chat.tony.place/get");
-  const data = await res.json();
-  const session = await getSession(context);
+const fetchData = async () => {
+  //console.log(ctx);
+  const res = await fetch("https://chat.tony.place/get")
+  const data = await res.json()
 
   if (!data) {
     return {
       notFound: true,
-    };
+    }
   }
 
-  return {
-    props: {
-      data,
-      session,
-    },
-  };
-};
-
-export async function getServerSideProps() {
-  return await fetchData();
+  return data
 }
 
-function Home({ data, session }) {
-  //const { user } = useAuth()
-  //const [session, loading] = useSession();
-  const [rooms, setRooms] = useState(data?.rooms);
-  const [showModal, setShowModal] = useState(false);
+export async function getServerSideProps(ctx) {
+  return { props: { data: await fetchData(), session: await getSession(ctx) } }
+}
+
+function Home({ data }) {
+  const [session, loading] = useSession()
+  const [rooms, setRooms] = useState(data?.rooms)
+  const [showModal, setShowModal] = useState(false)
 
   if (!session && typeof window !== "undefined") {
-    window.location = "/login";
-    return null;
+    window.location = "/login"
+    return null
   }
 
   const createRoom = async () => {
     try {
-      let temp = rooms || [];
+      let temp = rooms || []
       //Switch /create to a POST and take room data from the frontend
-      const res = await fetch("https://chat.tony.place/create");
-      const data = await res.json();
-      console.log(data);
-      temp.push(data.roomID);
-      setRooms([...temp]);
+      const res = await fetch("https://chat.tony.place/create")
+      const data = await res.json()
+      console.log(data)
+      temp.push(data.roomID)
+      setRooms([...temp])
     } catch (error) {
-      console.log("Error Creating Room: ", error);
+      console.log("Error Creating Room: ", error)
     }
     //    setShowModal(true)
-  };
+  }
 
   return (
     <>
@@ -87,7 +81,7 @@ function Home({ data, session }) {
                         </a>
                       </Link>
                     </li>
-                  );
+                  )
                 })
               ) : (
                 <div> No Rooms Found </div>
@@ -97,7 +91,7 @@ function Home({ data, session }) {
         </div>
       </div>
     </>
-  );
+  )
 }
 
-export default Home;
+export default Home
