@@ -1,19 +1,24 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
+	firebase "firebase.google.com/go"
+	fa "firebase.google.com/go/auth"
+	"google.golang.org/api/option"
+
 	"github.com/gorilla/websocket"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/joho/godotenv"
 )
 
 var AllRooms RoomMap //Typing As RoomMap
-var id string
 var DB *sql.DB //Pointer to DB
 
 type RoomResp struct {
@@ -26,22 +31,36 @@ type respMap struct {
 	Rooms []RoomResp `json:"rooms"`
 }
 
-type UuidResp struct {
-	Uuid string `json:"userUuid"`
-}
+//Unused right now
+
+//type User struct {
+//	Uuid string `json:"userUuid"`
+//	Username string `json:"username"`
+//	Password string `json:password`
+//}
 
 type ErrorResp struct {
 	ErrorMessage string `json:"error"`
 }
 
-type LoginBody struct {
-	Username string
-	Password string
+
+//MOVE OUT OF HERE??
+type Context struct {
+	Writer http.ResponseWriter
+	Req *http.Request
+	Token *fa.Token
 }
+
+
 
 ////////////////////////////////
 //// FIX API ERROR HANDLING ////
 ////////////////////////////////
+
+
+/////////////////////////////////////
+//Move these to seperate Go module//
+////////////////////////////////////
 
 var upgrader = websocket.Upgrader{
 	HandshakeTimeout: 0,
@@ -76,12 +95,15 @@ func Upgrader( w http.ResponseWriter, r  *http.Request) (*websocket.Conn, error)
 }
 
 func handleCors(w *http.ResponseWriter) {
-	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
 	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+	(*w).Header().Set("Access-Control-Allow-Credentials", "true")
 }
 
 //Create room and return RoomID
+//rooms/createRoom.go
+
 func CreateRoomRequestHandler(w http.ResponseWriter, r *http.Request)  {
 	fmt.Println("~~~~~~~CREATE~~~~~~~")
 	 handleCors(&w)
@@ -102,6 +124,7 @@ func CreateRoomRequestHandler(w http.ResponseWriter, r *http.Request)  {
  }
 
 //Join Room
+//rooms/joinRoom.go
 func JoinRoomRequestHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("JOIN ROOM")
 	handleCors(&w)
@@ -124,6 +147,7 @@ func JoinRoomRequestHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 //Get Room
+//rooms/getRooms.go
 func GetRoomsRequestHandler(w http.ResponseWriter, r *http.Request)  {
 	fmt.Println("~~~~~~ GET ROOMS ~~~~~")
 	handleCors(&w)
@@ -138,118 +162,26 @@ func GetRoomsRequestHandler(w http.ResponseWriter, r *http.Request)  {
 		return
 	}
 
-	fmt.Println("~~~~~~ GET ROOMS RETURN ~~~~~")
-	fmt.Println(rooms)
-	fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-	fmt.Println("LENGTH")
-	fmt.Println(len(rooms))
-	fmt.Println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 	json.NewEncoder(w).Encode(respMap{Rooms: rooms})
 }
 
+//register/register.go
 func RegisterUserRequestHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("~~~~~~~REGISTER~~~~~~~")
-	handleCors(&w)
-	if r.Method == "OPTIONS" {
-		return
- 	}
 
-	if r.Method != http.MethodPost {
-		log.Printf("Require POST Request")
-		w.WriteHeader(405)
-		json.NewEncoder(w).Encode(ErrorResp{ErrorMessage: "Method not allowed: Route requires POST Request"})
-		return
-	}
-
-	var body LoginBody
-
-	//Read Request Body and return error if unsuccessful
-	bodyErr := json.NewDecoder(r.Body).Decode(&body)
-	if bodyErr != nil {
-		log.Printf("%v", bodyErr)
-		w.WriteHeader(500)
-		return
-	}
-
-	//Check if username is valid
-	isValid := checkValidUsername(body.Username)
-	fmt.Println(isValid)
-	if !isValid {
-		w.WriteHeader(500)
-		return
-	}
-
-	//Hash password with bcrypt
-	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
-	if err != nil {
-		log.Printf("%v", err)
-		w.WriteHeader(500)
-		return
-	}
-	fmt.Println(string(hash))
-
-	//Convert hash byte slice into string, insert user into DB.
-	//If successful return DB generated Uuid if not return error.
-	uuid, err := insertUser(body.Username, string(hash))
-	if err != nil {
-		log.Printf("%v", err)
-		w.WriteHeader(500)
-	}
-
-	json.NewEncoder(w).Encode(UuidResp{Uuid: uuid})
 }
 
-func LoginRequestHandler(w http.ResponseWriter, r *http.Request) {
-	handleCors(&w)
-	if r.Method == "OPTIONS" {
-		return
- 	}
+//login/login.go
+func LoginRequestHandler(w http.ResponseWriter, r *http.Request) {}
 
-	if r.Method != http.MethodPost {
-		log.Printf("Require POST Request")
-		w.WriteHeader(405)
-		json.NewEncoder(w).Encode(ErrorResp{ErrorMessage: "Method not allowed: Route requires POST Request"})
-		return
-	}
 
-	var body LoginBody
 
-	//Read Request Body and return error if unsuccessful
-	bodyErr := json.NewDecoder(r.Body).Decode(&body)
-	if bodyErr != nil {
-		log.Printf("%v", bodyErr)
-		w.WriteHeader(400)
-	}
-
-	uuid, err := validateLogin(body.Username, body.Password)
-	if err != nil {
-		fmt.Println("error validating: ", err)
-		w.WriteHeader(400)
-		json.NewEncoder(w).Encode(ErrorResp{ErrorMessage: err.Error()})
-		return
-	}
-	fmt.Println(uuid)
-	json.NewEncoder(w).Encode(UuidResp{Uuid: uuid})
-}
 
 
 /////////////////////////////////////
 //Move these to seperate Go module?//
 ////////////////////////////////////
 
-//Check DB for username
-func checkValidUsername(username string) (bool) {
-	var uuid string
 
-	query := fmt.Sprintf("SELECT user_uuid FROM users WHERE username = '%s'", username)
-	err := DB.QueryRow(query).Scan(&uuid)
-
-	if err == sql.ErrNoRows {
-		return true
-	} else {
-		return false
-	}
-}
 
 
 //Return Rooms from DB
@@ -286,40 +218,27 @@ func getRooms() ([]RoomResp, error)  {
 }
 
 //Insert User into DB
-//Usernames can be duplicated right now
-func insertUser(username string, password string) (string, error){
-	query := fmt.Sprintf("INSERT into users VALUES (nextval('users_user_id_seq'::regclass), default, '%s', '%s') RETURNING user_uuid;", username, password)
+//func insertUser(username string, password string) (User, error){
+//	query := fmt.Sprintf("INSERT into users VALUES (nextval('users_user_id_seq'::regclass), default, '%s', '%s') RETURNING user_uuid;", username, password)
 
-	var uuid string
-	err := DB.QueryRow(query).Scan(&uuid)
+//	var uuid string
+//	var user User
+//	err := DB.QueryRow(query).Scan(&uuid)
 
-	if err != nil {
-		fmt.Println(err)
-		return "", err
-	}
+//	if err != nil {
+//		fmt.Println(err)
+//		return user, err
+//	}
 
-	return uuid, nil
-}
+//	user = User {
+//		uuid,
+//		username,
+//		password,
+//	}
 
-//Query DB for username and compare hashed password
-func validateLogin(username string, password string) (string, error) {
-	var uuid, dbUsername, dbPassword string
-	query := fmt.Sprintf("SELECT user_uuid, username, password FROM users where username = '%s'", username)
+//	return user, nil
+//}
 
-	err := DB.QueryRow(query).Scan(&uuid, &dbUsername, &dbPassword)
-	if err != nil {
-		fmt.Println(err)
-		return "", err
-	}
-
-	bcryptErr := bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(password))
-	if bcryptErr != nil {
-		fmt.Println(bcryptErr)
-		return "", bcryptErr
-	}
-
-	return uuid, nil
-}
 
 func dbCreateRoom(roomName string ) (string, error) {
 	query := fmt.Sprintf("INSERT into rooms VALUES (nextval('users_user_id_seq'::regclass), default, '%s') RETURNING room_uuid;", roomName)
@@ -334,6 +253,324 @@ func dbCreateRoom(roomName string ) (string, error) {
 
 	return uuid, nil
 }
+
+
+func loadDotEnv(key string) string {
+	err := godotenv.Load(".env")
+
+	if err != nil {
+		fmt.Println(err)
+	}
+	return os.Getenv(key)
+}
+
+func FirebaseAuthRoute (handler http.Handler) http.HandlerFunc {
+	return func (w http.ResponseWriter, r *http.Request) {
+
+		rc := &Context{
+			Writer: w,
+			Req: r,
+			Token: nil,
+		}
+		path := loadDotEnv("FIREBASE_SECRET_PATH")
+		opt := option.WithCredentialsFile(path)
+		app, err := firebase.NewApp(context.Background(), nil, opt)
+
+		if err != nil {
+			fmt.Println("ERROR IN FIREBASE APP")
+			return
+		}
+
+		auth, err := app.Auth(context.Background())
+
+		if err != nil {
+			fmt.Println("ERROR IN FIREBASE AUTH")
+			return
+		}
+
+		header := r.Header.Get("Authorization")
+		idToken := strings.TrimSpace(strings.Replace(header, "Bearer", "", 1))
+
+		token , err := auth.VerifyIDToken(context.Background(), idToken)
+		if err != nil {
+			fmt.Println("ERROR IN FIREBASE TOKEN")
+			fmt.Println(idToken)
+			return
+		}
+
+		rc.Token = token
+		handler.ServeHTTP(w,r)
+	}
+}
+
+
+
+
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+///////////////////LEGACY LOGIN STUFF//////////////////////
+///////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////
+
+
+//type Authentication struct {
+//	Username string
+//	Password string
+//}
+
+//type Token struct {
+//	Username string `json:"username"`
+//	Uuid string `json:"userUuid"`
+//	TokenString string `json:"token"`
+//}
+
+//type UuidResp struct {
+//	Uuid string `json:"userUuid"`
+//}
+
+//register/register.go
+//func RegisterUserRequestHandler(w http.ResponseWriter, r *http.Request) {
+//	fmt.Println("~~~~~~~REGISTER~~~~~~~")
+//	handleCors(&w)
+//	if r.Method == "OPTIONS" {
+//		return
+// 	}
+
+//	if r.Method != http.MethodPost {
+//		log.Printf("Require POST Request")
+//		w.WriteHeader(405)
+//		json.NewEncoder(w).Encode(ErrorResp{ErrorMessage: "Method not allowed: Route requires POST Request"})
+//		return
+//	}
+
+//	var authDetails Authentication
+
+//	//Read Request Body and return error if unsuccessful
+//	bodyErr := json.NewDecoder(r.Body).Decode(&authDetails)
+//	if bodyErr != nil {
+//		log.Printf("%v", bodyErr)
+//		w.WriteHeader(500)
+//		return
+//	}
+
+//	//Check if username is valid
+//	isValid := checkValidUsername(authDetails.Username)
+//	fmt.Println(isValid)
+//	if !isValid {
+//		w.WriteHeader(500)
+//		return
+//	}
+
+//	//Hash password with bcrypt
+//	hash, err := bcrypt.GenerateFromPassword([]byte(authDetails.Password), bcrypt.DefaultCost)
+//	if err != nil {
+//		log.Printf("%v", err)
+//		w.WriteHeader(500)
+//		return
+//	}
+//	fmt.Println(string(hash))
+
+//	//Convert hash byte slice into string, insert user into DB.
+//	//If successful return DB generated Uuid if not return error.
+//	user, err := insertUser(authDetails.Username, string(hash))
+//	if err != nil {
+//		log.Printf("%v", err)
+//		w.WriteHeader(500)
+//	}
+
+//	validToken, err := GenerateJWT(user.Username, user.Uuid)
+//	if err != nil {
+//		fmt.Println("error generating token: ", err)
+//		w.WriteHeader(400)
+//		json.NewEncoder(w).Encode(ErrorResp{ErrorMessage: err.Error()})
+//		return
+//	}
+
+//	var token Token
+//	token.Username = user.Username
+//	token.Uuid = user.Uuid
+//	token.TokenString = validToken
+//	cookie := http.Cookie{
+//		Name:       "auth-cookie",
+//		Value:      token.TokenString,
+//		HttpOnly:   true,
+//	}
+//	http.SetCookie(w, &cookie)
+
+//	json.NewEncoder(w).Encode(token)
+//}
+
+////login/login.go
+//func LoginRequestHandler(w http.ResponseWriter, r *http.Request) {
+//	handleCors(&w)
+//	if r.Method == "OPTIONS" {
+//		return
+// 	}
+
+//	if r.Method != http.MethodPost {
+//		log.Printf("Require POST Request")
+//		w.WriteHeader(405)
+//		json.NewEncoder(w).Encode(ErrorResp{ErrorMessage: "Method not allowed: Route requires POST Request"})
+//		return
+//	}
+
+//	var authDetails Authentication
+
+//	//Read Request Body and return error if unsuccessful
+//	bodyErr := json.NewDecoder(r.Body).Decode(&authDetails)
+//	if bodyErr != nil {
+//		log.Printf("%v", bodyErr)
+//		w.WriteHeader(400)
+//	}
+
+//	user, err := validateLogin(authDetails.Username, authDetails.Password)
+//	if err != nil {
+//		fmt.Println("error validating: ", err)
+//		w.WriteHeader(400)
+//		json.NewEncoder(w).Encode(ErrorResp{ErrorMessage: err.Error()})
+//		return
+//	}
+
+//	validToken, err := GenerateJWT(user.Username, user.Uuid)
+//	if err != nil {
+//		fmt.Println("error generating token: ", err)
+//		w.WriteHeader(400)
+//		json.NewEncoder(w).Encode(ErrorResp{ErrorMessage: err.Error()})
+//		return
+//	}
+
+//	var token Token
+//	token.Username = user.Username
+//	token.Uuid = user.Uuid
+//	token.TokenString = validToken
+//	expiration := time.Now().AddDate(0,1,0)
+//	cookie := http.Cookie{
+//		Name:       "session",
+//		Value:      token.TokenString,
+//		Path:       "/",
+//		Domain:     "localhost",
+//		Expires:    expiration,
+//		RawExpires: "",
+//		MaxAge:     0,
+//		Secure:     true,
+//		HttpOnly:   false,
+//		SameSite:   http.SameSiteNoneMode,
+//		Raw:        "",
+
+//	}
+//	//cookie.Domain =
+//	http.SetCookie(w, &cookie)
+//	//fmt.Println(uuid)
+//	w.Header().Set("Content-Type", "application/json")
+//	json.NewEncoder(w).Encode(token)
+//}
+
+
+
+
+
+
+
+//Query DB for username and compare hashed password
+//func validateLogin(username string, password string) (User, error) {
+//	var uuid, dbUsername, dbPassword string
+//	var user User
+//	query := fmt.Sprintf("SELECT user_uuid, username, password FROM users where username = '%s'", username)
+
+//	err := DB.QueryRow(query).Scan(&uuid, &dbUsername, &dbPassword )
+//	if err != nil {
+//		fmt.Println(err)
+//		return user, err
+//	}
+
+//	bcryptErr := bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(password))
+//	if bcryptErr != nil {
+//		fmt.Println(bcryptErr)
+//		return user, bcryptErr
+//	}
+//	user = User{
+//		uuid,
+//		username,
+//		dbPassword,
+//	}
+//	return user, nil
+//}
+
+//Check DB for username
+//func checkValidUsername(username string) (bool) {
+//	var uuid string
+
+//	query := fmt.Sprintf("SELECT user_uuid FROM users WHERE username = '%s'", username)
+//	err := DB.QueryRow(query).Scan(&uuid)
+
+//	if err == sql.ErrNoRows {
+//		return true
+//	} else {
+//		return false
+//	}
+//}
+
+
+
+//func AuthorizedRoute (handler http.Handler) http.HandlerFunc {
+//	return func (w http.ResponseWriter, r *http.Request) {
+//		fmt.Printf("~~~~~~~~~ HANDLER ~~~~~~")
+//		fmt.Println(r.Header["Token"])
+//		if r.Header["Token"] == nil {
+//			fmt.Printf("Token Not Found")
+//			w.WriteHeader(401)
+//			//json.NewEncoder(w).Encode(err)
+//			json.NewEncoder(w)//.Encode(ErrorResp{ErrorMessage: err.Error()})
+//			return
+//		}
+//		fmt.Printf("~~~~~~~~~ HANDLER Token ~~~~~~")
+
+//		tokenString := r.Header["Token"][0]
+//		signingKey := []byte(loadDotEnv("SECRET_KEY"))
+
+//		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+//			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+//				return nil, fmt.Errorf("unexptected signing method: %v", token.Header["alg"])
+//			}
+
+//			return signingKey, nil
+//		})
+
+//		if err != nil {
+//			fmt.Printf("Token Expired: %v", err.Error())
+//			json.NewEncoder(w).Encode(ErrorResp{ErrorMessage: err.Error()})
+//			return
+//		}
+
+
+//		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+//				if claims["authorized"] == true {
+//					handler.ServeHTTP(w,r)
+//				}
+//		}
+//	}
+//}
+
+
+//func GenerateJWT (username, uuid string) (string, error) {
+//	signingKey := []byte(loadDotEnv("SECRET_KEY"))
+//	token := jwt.New(jwt.SigningMethodHS256)
+//	claims := token.Claims.(jwt.MapClaims)
+
+//	claims["authorized"] = true
+//	claims["username"] = username
+//	claims["uuid"] = uuid
+//	claims["exp"] = time.Now().Add(time.Minute * 30).Unix()
+
+//	tokenString, err := token.SignedString(signingKey)
+
+//	if err != nil {
+//		fmt.Errorf("Something went Wrong: %s", err.Error())
+//		return "", err
+//	}
+
+//	return tokenString, nil
+//}
 
 
 

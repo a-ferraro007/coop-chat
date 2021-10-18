@@ -1,7 +1,7 @@
 package main
 
 import (
-	"backend/server"
+	backendServer "backend/server"
 	"database/sql"
 	"fmt"
 	"log"
@@ -10,6 +10,11 @@ import (
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	//	"github.com/go-oauth2/oauth2/errors"
+	//	"github.com/go-oauth2/oauth2/v4/manage"
+	//	"github.com/go-oauth2/oauth2/v4/models"
+	//	"github.com/go-oauth2/oauth2/v4/server"
+	//	"github.com/go-oauth2/oauth2/v4/store"
 )
 
 
@@ -21,15 +26,17 @@ func main() {
 	fmt.Println(db)
 	fmt.Println(err)
 
-	server.AllRooms.Init()
-	server.DB = db //I need a reference to the DB connection in the signal go module
+	backendServer.AllRooms.Init()
+	backendServer.DB = db //I need a reference to the DB connection in the signal go module
 
-	//API Routes
-	http.HandleFunc("/create", server.CreateRoomRequestHandler)
-	http.HandleFunc("/join", server.JoinRoomRequestHandler)
-	http.HandleFunc("/get", server.GetRoomsRequestHandler)
-	http.HandleFunc("/create_account", server.RegisterUserRequestHandler)
-	http.HandleFunc("/login", server.LoginRequestHandler)
+	//Authorized API Routes
+	http.HandleFunc("/create", backendServer.FirebaseAuthRoute(http.HandlerFunc(backendServer.CreateRoomRequestHandler)))
+	http.HandleFunc("/join", backendServer.FirebaseAuthRoute(http.HandlerFunc(backendServer.JoinRoomRequestHandler)))
+	http.HandleFunc("/get", backendServer.FirebaseAuthRoute(http.HandlerFunc(backendServer.GetRoomsRequestHandler)))
+
+	//Unauthorized API Routes
+	http.HandleFunc("/create_account", backendServer.RegisterUserRequestHandler)
+	http.HandleFunc("/login", backendServer.LoginRequestHandler)
 
 	log.Println("Starting Server on :8000")
 	http.ListenAndServe(":8000", nil)
