@@ -31,6 +31,12 @@ type respMap struct {
 	Rooms []RoomResp `json:"rooms"`
 }
 
+type FirebaseAuthUser struct {
+	Uid string `json:"uid"`
+	//Username string
+	//Email string
+}
+
 //Unused right now
 
 //type User struct {
@@ -50,6 +56,7 @@ type Context struct {
 	Req *http.Request
 	Token *fa.Token
 }
+
 
 
 
@@ -167,14 +174,36 @@ func GetRoomsRequestHandler(w http.ResponseWriter, r *http.Request)  {
 
 //register/register.go
 func RegisterUserRequestHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("~~~~~~~REGISTER~~~~~~~")
 
+
+
+	if r.Method != http.MethodPost {
+		log.Printf("Require POST Request")
+		w.WriteHeader(405)
+		json.NewEncoder(w).Encode(ErrorResp{ErrorMessage: "Method not allowed: Route requires POST Request"})
+		return
+	}
+
+	var user FirebaseAuthUser
+
+	//Read Request Body and return error if unsuccessful
+	bodyErr := json.NewDecoder(r.Body).Decode(&user)
+	if bodyErr != nil {
+		log.Printf("%v", bodyErr)
+		w.WriteHeader(500)
+		return
+	}
+
+	err := insertUser(user.Uid)
+	if err != nil {
+		log.Printf("%v", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	json.NewEncoder(w).Encode(user)
 }
-
-//login/login.go
-func LoginRequestHandler(w http.ResponseWriter, r *http.Request) {}
-
-
-
 
 
 /////////////////////////////////////
@@ -218,26 +247,19 @@ func getRooms() ([]RoomResp, error)  {
 }
 
 //Insert User into DB
-//func insertUser(username string, password string) (User, error){
-//	query := fmt.Sprintf("INSERT into users VALUES (nextval('users_user_id_seq'::regclass), default, '%s', '%s') RETURNING user_uuid;", username, password)
+func insertUser(uid string) (error){
+	query := fmt.Sprintf("INSERT into firebase_user (uid) VALUES ('%s') RETURNING uid;", uid)
 
-//	var uuid string
-//	var user User
-//	err := DB.QueryRow(query).Scan(&uuid)
+	var uuid string
+	err := DB.QueryRow(query).Scan(&uuid)
 
-//	if err != nil {
-//		fmt.Println(err)
-//		return user, err
-//	}
+	if err != nil {
+		fmt.Println(err)
+		return  err
+	}
 
-//	user = User {
-//		uuid,
-//		username,
-//		password,
-//	}
-
-//	return user, nil
-//}
+	return  nil
+}
 
 
 func dbCreateRoom(roomName string ) (string, error) {
@@ -261,11 +283,17 @@ func loadDotEnv(key string) string {
 	if err != nil {
 		fmt.Println(err)
 	}
+
 	return os.Getenv(key)
 }
 
 func FirebaseAuthRoute (handler http.Handler) http.HandlerFunc {
 	return func (w http.ResponseWriter, r *http.Request) {
+		handleCors(&w)
+
+		if r.Method == "OPTIONS" {
+			return
+		}
 
 		rc := &Context{
 			Writer: w,
@@ -295,6 +323,7 @@ func FirebaseAuthRoute (handler http.Handler) http.HandlerFunc {
 		if err != nil {
 			fmt.Println("ERROR IN FIREBASE TOKEN")
 			fmt.Println(idToken)
+			fmt.Println(err)
 			return
 		}
 
@@ -330,28 +359,28 @@ func FirebaseAuthRoute (handler http.Handler) http.HandlerFunc {
 
 //register/register.go
 //func RegisterUserRequestHandler(w http.ResponseWriter, r *http.Request) {
-//	fmt.Println("~~~~~~~REGISTER~~~~~~~")
-//	handleCors(&w)
-//	if r.Method == "OPTIONS" {
-//		return
-// 	}
+	//fmt.Println("~~~~~~~REGISTER~~~~~~~")
+	//handleCors(&w)
+	//if r.Method == "OPTIONS" {
+	//	return
+ 	//}
 
-//	if r.Method != http.MethodPost {
-//		log.Printf("Require POST Request")
-//		w.WriteHeader(405)
-//		json.NewEncoder(w).Encode(ErrorResp{ErrorMessage: "Method not allowed: Route requires POST Request"})
-//		return
-//	}
+	//if r.Method != http.MethodPost {
+	//	log.Printf("Require POST Request")
+	//	w.WriteHeader(405)
+	//	json.NewEncoder(w).Encode(ErrorResp{ErrorMessage: "Method not allowed: Route requires POST Request"})
+	//	return
+	//}
 
-//	var authDetails Authentication
+	//var authDetails Authentication
 
-//	//Read Request Body and return error if unsuccessful
-//	bodyErr := json.NewDecoder(r.Body).Decode(&authDetails)
-//	if bodyErr != nil {
-//		log.Printf("%v", bodyErr)
-//		w.WriteHeader(500)
-//		return
-//	}
+	////Read Request Body and return error if unsuccessful
+	//bodyErr := json.NewDecoder(r.Body).Decode(&authDetails)
+	//if bodyErr != nil {
+	//	log.Printf("%v", bodyErr)
+	//	w.WriteHeader(500)
+	//	return
+	//}
 
 //	//Check if username is valid
 //	isValid := checkValidUsername(authDetails.Username)
@@ -372,11 +401,11 @@ func FirebaseAuthRoute (handler http.Handler) http.HandlerFunc {
 
 //	//Convert hash byte slice into string, insert user into DB.
 //	//If successful return DB generated Uuid if not return error.
-//	user, err := insertUser(authDetails.Username, string(hash))
-//	if err != nil {
-//		log.Printf("%v", err)
-//		w.WriteHeader(500)
-//	}
+	//user, err := insertUser(authDetails.Username, string(hash))
+	//if err != nil {
+	//	log.Printf("%v", err)
+	//	w.WriteHeader(500)
+	//}
 
 //	validToken, err := GenerateJWT(user.Username, user.Uuid)
 //	if err != nil {
@@ -572,7 +601,26 @@ func FirebaseAuthRoute (handler http.Handler) http.HandlerFunc {
 //	return tokenString, nil
 //}
 
+//func insertUser(username string, password string) (User, error){
+//	query := fmt.Sprintf("INSERT into users VALUES (nextval('users_user_id_seq'::regclass), default, '%s', '%s') RETURNING user_uuid;", username, password)
 
+//	var uuid string
+//	var user User
+//	err := DB.QueryRow(query).Scan(&uuid)
+
+//	if err != nil {
+//		fmt.Println(err)
+//		return user, err
+//	}
+
+//	user = User {
+//		uuid,
+//		username,
+//		password,
+//	}
+
+//	return user, nil
+//}
 
 
 //JOIN ROOM

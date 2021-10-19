@@ -35,8 +35,8 @@ func main() {
 	http.HandleFunc("/get", backendServer.FirebaseAuthRoute(http.HandlerFunc(backendServer.GetRoomsRequestHandler)))
 
 	//Unauthorized API Routes
-	http.HandleFunc("/create_account", backendServer.RegisterUserRequestHandler)
-	http.HandleFunc("/login", backendServer.LoginRequestHandler)
+	http.HandleFunc("/create_user", backendServer.FirebaseAuthRoute(http.HandlerFunc(backendServer.RegisterUserRequestHandler)))
+	//http.HandleFunc("/login", backendServer.LoginRequestHandler)
 
 	log.Println("Starting Server on :8000")
 	http.ListenAndServe(":8000", nil)

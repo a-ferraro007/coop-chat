@@ -7,8 +7,10 @@ import { useAuth } from "../context/auth"
 const fetchData = async (ctx) => {
   try {
     const cookies = nookies.get(ctx)
+    console.log(cookies)
     let headers = new Headers()
     headers.append("Authorization", `Bearer ${cookies.token}`)
+
     const res = await fetch("http://localhost:8000/get", { headers })
     const data = await res.json()
 
@@ -20,7 +22,7 @@ const fetchData = async (ctx) => {
 
     return data
   } catch (error) {
-    console.log("err", error)
+    console.log(error)
     return {
       notFound: true,
     }
@@ -42,8 +44,7 @@ function Home({ data }) {
 
   useEffect(() => {
     if (!loading && !user) {
-      console.log("login component user: ", user)
-      router.push("/login")
+      router.replace("/login")
     }
   }, [loading])
 

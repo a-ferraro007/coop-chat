@@ -15,22 +15,18 @@ function login() {
     createUserWithEmailAndPassword,
   } = useAuth()
   const router = useRouter()
-  //const { login, user, create } = useAuth()
 
   useEffect(() => {
-    console.log("USER: ", user)
     if (!loading && user) {
-      console.log("login component user: ", user)
       router.push("/")
     }
-  }, [loading, user])
+  }, [loading])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (isCreate) {
       try {
         const res = await createUserWithEmailAndPassword(username, password)
-        console.log(res)
         router.push("/")
       } catch (error) {
         console.log(error)
@@ -38,7 +34,7 @@ function login() {
     } else {
       try {
         const res = await signInWithEmailAndPassword(username, password)
-        console.log(res)
+
         router.push("/")
       } catch (error) {
         console.log(error)

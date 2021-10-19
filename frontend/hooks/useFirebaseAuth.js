@@ -19,6 +19,7 @@ export default function useFirebaseAuth() {
     setUser(authState)
     nookies.set(undefined, "token", token, { path: "/" })
     setLoading(false)
+    return
   }
 
   const clear = () => {
@@ -30,8 +31,27 @@ export default function useFirebaseAuth() {
   const signInWithEmailAndPassword = (email, password) =>
     signIn(auth, email, password)
 
-  const createUserWithEmailAndPassword = (email, password) =>
-    createUser(auth, email, password)
+  const createUserWithEmailAndPassword = async (email, password) => {
+    const fb = await createUser(auth, email, password)
+
+    try {
+      let headers = new Headers()
+      headers.append("Authorization", `Bearer ${fb.user.accessToken}`)
+      const body = JSON.stringify({
+        uid: fb.user.uid,
+      })
+      const opts = {
+        method: "POST",
+        headers,
+        body,
+      }
+      const res = await fetch("http://localhost:8000/create_user", opts)
+      const data = await res.json()
+    } catch (error) {
+      console.log(error)
+    }
+    return fb
+  }
 
   const signOut = () => signOutUser(auth).then(clear)
 
